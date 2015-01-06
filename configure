@@ -1,0 +1,9 @@
+#!/bin/bash
+
+REGION=$(echo $(curl http://169.254.169.254/latest/meta-data/placement/availability-zone -s) | sed 's/[a-z]$//')
+PRIVATE_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4 -s)
+INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -s)
+ASG=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=aws:autoscaling:groupName" --query 'Tags[0].Value' --region=$REGION --output=text)
+CLUSTER_IPS=$(echo $(aws ec2 describe-instances --filters "Name=tag-key,Values=aws:autoscaling:groupName Name=tag-value,Values=$ASG" --query 'Reservations[*].Instances[*].PrivateIpAddress' --region=$REGION --output=text) | sed "s/$PRIVATE_IP//")
+
+echo "docker run --rm progrium/consul cmd:run $PRIVATE_IP::$CLUSTER_IPS -d"
